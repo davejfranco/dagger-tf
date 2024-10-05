@@ -22,12 +22,42 @@ import (
 
 type Terraform struct{}
 
+// TODO: Fix error: STS: Get CallerIdentity exceeded maximum number of attempts 9
+//func (t *Terraform) Localstack(ctx context.Context, src *dagger.Directory) (string, error) {
+//	init, err := t.init(ctx, src)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	localstack := dag.Container().
+//		From("localstack/localstack").
+//		WithExposedPort(4566).
+//		AsService()
+//
+//	lsSrv, err := localstack.Start(ctx)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	defer localstack.Stop(ctx)
+//
+//	return init.
+//		WithServiceBinding("localstack", lsSrv).
+//		WithExec([]string{"terraform", "plan"}).
+//		Stdout(ctx)
+//}
+
 func (t *Terraform) Apply(ctx context.Context,
 	src *dagger.Directory,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
 ) (string, error) {
-	init, err := t.Init(ctx, src)
+	init, err := t.init(
+		ctx,
+		src,
+		awsAccessKey,
+		awsSecretKey,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +74,12 @@ func (t *Terraform) Plan(ctx context.Context,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
 ) (string, error) {
-	init, err := t.Init(ctx, src)
+	init, err := t.init(
+		ctx,
+		src,
+		awsAccessKey,
+		awsSecretKey,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -56,57 +91,38 @@ func (t *Terraform) Plan(ctx context.Context,
 		Stdout(ctx)
 }
 
-func (t *Terraform) Validate(ctx context.Context, src *dagger.Directory) (string, error) {
-	container, err := t.Init(ctx, src)
-	if err != nil {
-		return "", err
-	}
-
-	return container.
-		WithExec([]string{"terraform", "validate"}).
-		Stdout(ctx)
-}
-
 func (t *Terraform) Format(ctx context.Context, src *dagger.Directory) (string, error) {
 	return t.BuildEnv(src).
 		WithExec([]string{"terraform", "fmt", "-check"}).
 		Stdout(ctx)
 }
 
-func (t *Terraform) Init(ctx context.Context, src *dagger.Directory) (*dagger.Container, error) {
+//func (t *Terraform) validate(ctx context.Context, src *dagger.Directory) (string, error) {
+//	container, err := t.init(ctx, src)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	return container.
+//		WithExec([]string{"terraform", "validate"}).
+//		Stdout(ctx)
+//}
+
+func (t *Terraform) init(ctx context.Context,
+	src *dagger.Directory,
+	awsAccessKey *dagger.Secret,
+	awsSecretKey *dagger.Secret,
+) (*dagger.Container, error) {
 	container := t.BuildEnv(src).
-		WithExec([]string{"terraform", "init"})
+		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
+		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
+		WithExec([]string{"terraform", "init", "-reconfigure"})
 
 	_, err := container.Stdout(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return container, nil
-}
-
-// TODO: Fix error: STS: Get CallerIdentity exceeded maximum number of attempts 9
-func (t *Terraform) Localstack(ctx context.Context, src *dagger.Directory) (string, error) {
-	init, err := t.Init(ctx, src)
-	if err != nil {
-		return "", err
-	}
-
-	localstack := dag.Container().
-		From("localstack/localstack").
-		WithExposedPort(4566).
-		AsService()
-
-	lsSrv, err := localstack.Start(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	defer localstack.Stop(ctx)
-
-	return init.
-		WithServiceBinding("localstack", lsSrv).
-		WithExec([]string{"terraform", "plan"}).
-		Stdout(ctx)
 }
 
 func (t *Terraform) BuildEnv(src *dagger.Directory) *dagger.Container {

@@ -1,0 +1,30 @@
+---
+name: Terraform PR Check
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: tf check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: AWS Login
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          region: us-east-1
+          role-to-assume: arn:aws:iam::444106639146:role/gha-iam-role
+          role-session-name: ghaSession
+
+      - name: print env
+        run: env
+
+      - name: tf fmt
+        uses: dagger/dagger-for-github@v6
+        with:
+          verb: call
+          args: Format
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

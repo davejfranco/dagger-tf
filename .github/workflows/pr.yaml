@@ -22,8 +22,8 @@ jobs:
           role-to-assume: arn:aws:iam::444106639146:role/gha-iam-role
           role-session-name: ghaSession
 
-      - name: print env
-        run: env
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
 
       - name: tf fmt
         uses: dagger/dagger-for-github@v6

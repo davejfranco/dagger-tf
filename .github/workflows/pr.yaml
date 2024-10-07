@@ -26,5 +26,5 @@ jobs:
         uses: dagger/dagger-for-github@v6
         with:
           verb: call
-          args: Format
+          args: format --src=.
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

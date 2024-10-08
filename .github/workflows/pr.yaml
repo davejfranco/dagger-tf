@@ -26,8 +26,5 @@ jobs:
         uses: dagger/dagger-for-github@v6
         with:
           verb: call
-          args: |
-            plan --src=. \
-            --awsAccessKey=env:AWS_ACCESS_KEY_ID \
-            --awsSecretKey=env:AWS_SECRET_ACCESS_KEY
+          args: plan --src=. --awsAccessKey=env:AWS_ACCESS_KEY_ID --awsSecretKey=env:AWS_SECRET_ACCESS_KEY
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

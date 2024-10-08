@@ -127,7 +127,7 @@ func (t *Terraform) init(ctx context.Context,
 
 func (t *Terraform) BuildEnv(src *dagger.Directory) *dagger.Container {
 	return dag.Container().
-		From("davejfranco/dagger-build-env").
+		From("hashicorp/terraform:latest").
 		WithDirectory("/src", src).
 		// Terminal(). This allows to debug step
 		WithWorkdir("/src")

@@ -16,15 +16,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: AWS Login
+        id: creds
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::444106639146:role/gha-iam-role
           role-session-name: ghaSession
 
-      - name: tf fmt
+      - name: tf plan
         uses: dagger/dagger-for-github@v6
         with:
           verb: call
           args: plan --src=. --awsAccessKey=env:$AWS_ACCESS_KEY_ID --awsSecretKey=env:$AWS_SECRET_ACCESS_KEY
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}

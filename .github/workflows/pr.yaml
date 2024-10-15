@@ -24,12 +24,12 @@ jobs:
           role-session-name: ghaSession
           output-credentials: true
 
-      - name: Test creds
-        run: echo ${{ steps.creds.outputs.aws-access-key-id }}
-
       - name: tf plan
         uses: dagger/dagger-for-github@v6
         with:
           verb: call
-          args: plan --src=. --awsAccessKey=${{ steps.creds.outputs.aws-access-key-id }} --awsSecretKey=${{ steps.creds.outputs.aws-secret-access-key }}
+          args: plan --src=. --awsAccessKey=env:${{ steps.creds.outputs.aws-access-key-id }} --awsSecretKey=env:${{ steps.creds.outputs.aws-secret-access-key }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}

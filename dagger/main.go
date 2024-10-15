@@ -73,12 +73,14 @@ func (t *Terraform) Plan(ctx context.Context,
 	src *dagger.Directory,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
+	awsSessionToken *dagger.Secret,
 ) (string, error) {
 	init, err := t.init(
 		ctx,
 		src,
 		awsAccessKey,
 		awsSecretKey,
+		awsSessionToken,
 	)
 	if err != nil {
 		return "", err
@@ -87,6 +89,7 @@ func (t *Terraform) Plan(ctx context.Context,
 	return init.
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
+		WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken).
 		WithExec([]string{"terraform", "plan"}).
 		Stdout(ctx)
 }
@@ -112,10 +115,12 @@ func (t *Terraform) init(ctx context.Context,
 	src *dagger.Directory,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
+	awsSessionToken *dagger.Secret,
 ) (*dagger.Container, error) {
 	container := t.BuildEnv(src).
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
+		WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken).
 		WithExec([]string{"terraform", "init", "-reconfigure"})
 
 	_, err := container.Stdout(ctx)

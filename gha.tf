@@ -7,7 +7,7 @@ module "gha-access" {
   // Limit access to the role from actions deployed on the ono-platform only
   subjects = [
     "repo:davejfranco/dagger-tf:pull_request",
-    "repo:davejfranco/dagger-tf:ref:refs/heads/main"
+    "repo:davejfranco/dagger-tf:ref:refs/heads/*"
 
   ]
 

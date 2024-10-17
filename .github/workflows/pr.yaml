@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
 permissions:
   id-token: write # This is required for requesting the JWT
   contents: read # This is required for actions/checkout
@@ -28,8 +29,13 @@ jobs:
         uses: dagger/dagger-for-github@v6
         with:
           verb: call
-          args: plan --src=. --awsAccessKey=env:AWS_ACCESS_KEY_ID --awsSecretKey=env:AWS_SECRET_ACCESS_KEY
+          args: |
+            plan --src=. \
+            --aws-access-key=env:AWS_ACCESS_KEY_ID \
+            --aws-secret-key=env:AWS_SECRET_ACCESS_KEY \
+            --aws-session-token=env:AWS_SESSION_TOKEN
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
         env:
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}

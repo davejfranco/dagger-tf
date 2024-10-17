@@ -20,109 +20,24 @@ import (
 	"dagger/terraform/internal/dagger"
 )
 
-type Terraform struct{}
-
-// TODO: Fix error: STS: Get CallerIdentity exceeded maximum number of attempts 9
-//func (t *Terraform) Localstack(ctx context.Context, src *dagger.Directory) (string, error) {
-//	init, err := t.init(ctx, src)
-//	if err != nil {
-//		return "", err
+//func New(
+//	// +optional
+//	source *dagger.Directory,
+//	// +optional
+//	awsAccessKey *dagger.Secret,
+//	// +optional
+//	awsSecretKey *dagger.Secret,
+//	// +optional
+//	awsSessionToken *dagger.Secret,
+//) *Terraform {
+//	return &Terraform{
+//		Src: source,
 //	}
-//
-//	localstack := dag.Container().
-//		From("localstack/localstack").
-//		WithExposedPort(4566).
-//		AsService()
-//
-//	lsSrv, err := localstack.Start(ctx)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	defer localstack.Stop(ctx)
-//
-//	return init.
-//		WithServiceBinding("localstack", lsSrv).
-//		WithExec([]string{"terraform", "plan"}).
-//		Stdout(ctx)
 //}
 
-func (t *Terraform) Apply(ctx context.Context,
-	src *dagger.Directory,
-	awsAccessKey *dagger.Secret,
-	awsSecretKey *dagger.Secret,
-) (string, error) {
-	init, err := t.init(
-		ctx,
-		src,
-		awsAccessKey,
-		awsSecretKey,
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return init.
-		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-		WithExec([]string{"terraform", "apply", "-auto-approve"}).
-		Stdout(ctx)
-}
-
-func (t *Terraform) Plan(ctx context.Context,
-	src *dagger.Directory,
-	awsAccessKey *dagger.Secret,
-	awsSecretKey *dagger.Secret,
-) (string, error) {
-	init, err := t.init(
-		ctx,
-		src,
-		awsAccessKey,
-		awsSecretKey,
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return init.
-		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-		WithExec([]string{"terraform", "plan"}).
-		Stdout(ctx)
-}
-
-func (t *Terraform) Format(ctx context.Context, src *dagger.Directory) (string, error) {
-	return t.BuildEnv(src).
-		WithExec([]string{"terraform", "fmt", "-check"}).
-		Stdout(ctx)
-}
-
-//func (t *Terraform) validate(ctx context.Context, src *dagger.Directory) (string, error) {
-//	container, err := t.init(ctx, src)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return container.
-//		WithExec([]string{"terraform", "validate"}).
-//		Stdout(ctx)
-//}
-
-func (t *Terraform) init(ctx context.Context,
-	src *dagger.Directory,
-	awsAccessKey *dagger.Secret,
-	awsSecretKey *dagger.Secret,
-) (*dagger.Container, error) {
-	container := t.BuildEnv(src).
-		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-		WithExec([]string{"terraform", "init", "-reconfigure"})
-
-	_, err := container.Stdout(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return container, nil
+type Terraform struct {
+	// Src *dagger.Directory
+	// AwsAccessKey, AwsSecretKey, AwsSessionToken *dagger.Secret
 }
 
 func (t *Terraform) BuildEnv(src *dagger.Directory) *dagger.Container {
@@ -132,3 +47,57 @@ func (t *Terraform) BuildEnv(src *dagger.Directory) *dagger.Container {
 		// Terminal(). This allows to debug step
 		WithWorkdir("/src")
 }
+
+func (t *Terraform) Format(ctx context.Context, src *dagger.Directory) (string, error) {
+	return t.BuildEnv(src).
+		WithExec([]string{"terraform", "fmt", "-check"}).
+		Stdout(ctx)
+}
+
+func runCommand(container *dagger.Container, command []string) *dagger.Container {
+	return container.WithExec(command)
+}
+
+func (t *Terraform) Plan(ctx context.Context,
+	src *dagger.Directory,
+	awsAccessKey *dagger.Secret,
+	awsSecretKey *dagger.Secret,
+	awsSessionToken *dagger.Secret,
+) (string, error) {
+	init := t.BuildEnv(src).
+		WithExec([]string{"terraform", "init", "-reconfigure"})
+
+	return init.
+		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
+		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
+		WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken).
+		WithExec([]string{"terraform", "plan"}).
+		Stdout(ctx)
+}
+
+//func (t *Terraform) Validate(
+//  src *dagger.Directory,
+//  awsAccessKey *dagger.Secret,
+//  awsSecretKey *dagger.Secret,
+//  awsSessionToken *dagger.Secret,
+//) error {
+//
+//  ctx := context.Background()
+//  container := t.BuildEnv(src)
+//
+//
+//  if awsSessionToken != dagger.Secret{} {
+//    return container.
+//      WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
+//      WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
+//      WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken).
+//      WithExec([]string{"terraform", "validate"}).
+//      Stdout(ctx)
+//    }
+//
+//  return container.
+//    WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
+//    WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
+//    WithExec([]string{"terraform", "validate"}).
+//    Stdout(ctx)
+//}

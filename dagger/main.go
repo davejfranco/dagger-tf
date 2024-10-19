@@ -20,59 +20,51 @@ import (
 	"dagger/terraform/internal/dagger"
 )
 
-//func New(
-//	// +optional
-//	source *dagger.Directory,
-//	// +optional
-//	awsAccessKey *dagger.Secret,
-//	// +optional
-//	awsSecretKey *dagger.Secret,
-//	// +optional
-//	awsSessionToken *dagger.Secret,
-//) *Terraform {
-//	return &Terraform{
-//		Src: source,
-//	}
-//}
-
-type Terraform struct {
-	// Src *dagger.Directory
-	// AwsAccessKey, AwsSecretKey, AwsSessionToken *dagger.Secret
+func New(
+	// +defaultPath="."
+	source *dagger.Directory,
+) *Terraform {
+	return &Terraform{
+		Src: source,
+	}
 }
 
-func (t *Terraform) BuildEnv(src *dagger.Directory) *dagger.Container {
+type Terraform struct {
+	Src *dagger.Directory
+}
+
+func (t *Terraform) BuildEnv() *dagger.Container {
 	return dag.Container().
 		From("hashicorp/terraform:latest").
-		WithDirectory("/src", src).
-		// Terminal(). This allows to debug step
+		WithDirectory("/src", t.Src).
 		WithWorkdir("/src")
 }
 
-func (t *Terraform) Format(ctx context.Context, src *dagger.Directory) (string, error) {
-	return t.BuildEnv(src).
+func (t *Terraform) FmtCheck(ctx context.Context) (string, error) {
+	return t.BuildEnv().
 		WithExec([]string{"terraform", "fmt", "-check"}).
 		Stdout(ctx)
 }
 
-func runCommand(container *dagger.Container, command []string) *dagger.Container {
-	return container.WithExec(command)
-}
-
 func (t *Terraform) Plan(ctx context.Context,
-	src *dagger.Directory,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
+	// +optional
 	awsSessionToken *dagger.Secret,
 ) (string, error) {
-	init := t.BuildEnv(src).
-		WithExec([]string{"terraform", "init", "-reconfigure"})
-
-	return init.
+	container := t.BuildEnv().
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-		WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken).
-		WithExec([]string{"terraform", "plan"}).
-		Stdout(ctx)
+		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
+
+	if awsSessionToken != nil {
+		container = container.WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken)
+	}
+
+	container = container.
+		WithExec([]string{"terraform", "init", "-reconfigure"}).
+		WithExec([]string{"terraform", "plan"})
+
+	return container.Stdout(ctx)
 }
 
 //func (t *Terraform) Validate(

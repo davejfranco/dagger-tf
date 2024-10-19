@@ -46,50 +46,56 @@ func (t *Terraform) FmtCheck(ctx context.Context) (string, error) {
 		Stdout(ctx)
 }
 
+func (t *Terraform) init(
+	awsAccessKey *dagger.Secret,
+	awsSecretKey *dagger.Secret,
+	// +optional
+	awsSessionToken *dagger.Secret,
+) *dagger.Container {
+	init := t.BuildEnv().
+		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
+		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
+
+	if awsSessionToken != nil {
+		init = init.WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken)
+	}
+
+	return init.
+		WithExec([]string{"terraform", "init", "-reconfigure"})
+}
+
 func (t *Terraform) Plan(ctx context.Context,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
 	// +optional
 	awsSessionToken *dagger.Secret,
 ) (string, error) {
-	container := t.BuildEnv().
-		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
-
-	if awsSessionToken != nil {
-		container = container.WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken)
-	}
+	container := t.init(
+		awsAccessKey,
+		awsSecretKey,
+		awsSessionToken,
+	)
 
 	container = container.
-		WithExec([]string{"terraform", "init", "-reconfigure"}).
 		WithExec([]string{"terraform", "plan"})
 
 	return container.Stdout(ctx)
 }
 
-//func (t *Terraform) Validate(
-//  src *dagger.Directory,
-//  awsAccessKey *dagger.Secret,
-//  awsSecretKey *dagger.Secret,
-//  awsSessionToken *dagger.Secret,
-//) error {
-//
-//  ctx := context.Background()
-//  container := t.BuildEnv(src)
-//
-//
-//  if awsSessionToken != dagger.Secret{} {
-//    return container.
-//      WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-//      WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-//      WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken).
-//      WithExec([]string{"terraform", "validate"}).
-//      Stdout(ctx)
-//    }
-//
-//  return container.
-//    WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-//    WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-//    WithExec([]string{"terraform", "validate"}).
-//    Stdout(ctx)
-//}
+func (t *Terraform) Apply(ctx context.Context,
+	awsAccessKey *dagger.Secret,
+	awsSecretKey *dagger.Secret,
+	// +optional
+	awsSessionToken *dagger.Secret,
+) (string, error) {
+	container := t.init(
+		awsAccessKey,
+		awsSecretKey,
+		awsSessionToken,
+	)
+
+	container = container.
+		WithExec([]string{"terraform", "apply", "-auto-approve"})
+
+	return container.Stdout(ctx)
+}

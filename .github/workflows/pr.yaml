@@ -1,11 +1,10 @@
 ---
 name: Terraform PR Check
 on:
-  push:
-    branches:
-      - develop
   pull_request:
-    types: [opened]
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   id-token: write # This is required for requesting the JWT

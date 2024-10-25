@@ -24,6 +24,12 @@ jobs:
           role-session-name: ghaSession
           output-credentials: true
 
+      - name: GITHUB_REF
+        run: |
+          echo $GITHUB_REF
+        env:
+          GITHUB_REF: ${{ env.GITHUB_REF }}
+
       - name: tf plan
         uses: dagger/dagger-for-github@v6
         with:

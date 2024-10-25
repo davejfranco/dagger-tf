@@ -117,7 +117,7 @@ func (t *Terraform) Plan(ctx context.Context,
 
 	if githubToken != "" {
 		repo := strings.Split(githubRepository, "/")
-		pr := strings.Split(githubRef, "/")[2]
+		pr := strings.Split(githubRef, "/")[1]
 		err = prComment(ctx, githubToken, repo[0], repo[1], pr, output)
 	}
 	return output, err

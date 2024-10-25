@@ -1,10 +1,9 @@
 ---
 name: Terraform PR Check
 on:
-  push:
-    branches:
-      - main
-      - develop
+  pull_request:
+    types: [opened]
+
 permissions:
   id-token: write # This is required for requesting the JWT
   contents: read # This is required for actions/checkout
@@ -33,8 +32,14 @@ jobs:
             --aws-access-key=AWS_ACCESS_KEY_ID
             --aws-secret-key=AWS_SECRET_ACCESS_KEY
             --aws-session-token=AWS_SESSION_TOKEN
+            --github-token=GITHUB_TOKEN
+            --github-repository=GITHUB_REPOSITORY
+            --github-ref=GITHUB_REF
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
         env:
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ env.GITHUB_REPOSITORY }}
+          GITHUB_REF: ${{ env.GITHUB_REF }}

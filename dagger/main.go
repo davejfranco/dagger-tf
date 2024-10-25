@@ -16,6 +16,11 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/google/go-github/v66/github"
 
 	"dagger/terraform/internal/dagger"
 )
@@ -33,15 +38,17 @@ type Terraform struct {
 	Src *dagger.Directory
 }
 
-func (t *Terraform) BuildEnv() *dagger.Container {
+// Returns a build environment
+func (t *Terraform) buildEnv() *dagger.Container {
 	return dag.Container().
 		From("hashicorp/terraform:latest").
 		WithDirectory("/src", t.Src).
 		WithWorkdir("/src")
 }
 
+// Checks if code is correctly formatted
 func (t *Terraform) FmtCheck(ctx context.Context) (string, error) {
-	return t.BuildEnv().
+	return t.buildEnv().
 		WithExec([]string{"terraform", "fmt", "-check"}).
 		Stdout(ctx)
 }
@@ -52,7 +59,7 @@ func (t *Terraform) init(
 	// +optional
 	awsSessionToken *dagger.Secret,
 ) *dagger.Container {
-	init := t.BuildEnv().
+	init := t.buildEnv().
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
 
@@ -64,11 +71,35 @@ func (t *Terraform) init(
 		WithExec([]string{"terraform", "init", "-reconfigure"})
 }
 
+func prComment(ctx context.Context, token, owner, repo, pr, content string) error {
+	body := fmt.Sprintf("```\n%s\n```", content)
+
+	prInt, err := strconv.Atoi(pr)
+	if err != nil {
+		return err
+	}
+
+	client := github.NewClient(nil).WithAuthToken(token)
+	_, _, err = client.Issues.CreateComment(ctx, owner, repo, prInt, &github.IssueComment{
+		Body: &body,
+	})
+
+	return err
+}
+
+// Returns a Terraform plan
 func (t *Terraform) Plan(ctx context.Context,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
 	// +optional
 	awsSessionToken *dagger.Secret,
+	// +optional
+	// +default=""
+	githubToken string,
+	// +optional
+	githubRepository string,
+	// +optional
+	githubRef string,
 ) (string, error) {
 	container := t.init(
 		awsAccessKey,
@@ -79,9 +110,20 @@ func (t *Terraform) Plan(ctx context.Context,
 	container = container.
 		WithExec([]string{"terraform", "plan"})
 
-	return container.Stdout(ctx)
+	output, err := container.Stdout(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if githubToken != "" {
+		repo := strings.Split(githubRepository, "/")
+		pr := strings.Split(githubRef, "/")[2]
+		err = prComment(ctx, githubToken, repo[0], repo[1], pr, output)
+	}
+	return output, err
 }
 
+// Executes Terraform Apply
 func (t *Terraform) Apply(ctx context.Context,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,

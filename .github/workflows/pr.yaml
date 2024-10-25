@@ -41,9 +41,9 @@ jobs:
             --aws-access-key=AWS_ACCESS_KEY_ID
             --aws-secret-key=AWS_SECRET_ACCESS_KEY
             --aws-session-token=AWS_SESSION_TOKEN
-            --github-ref=GITHUB_REF
-            --github-token=GITHUB_TOKEN
-            --github-repository=GITHUB_REPOSITORY
+            --github-ref=$GITHUB_REF
+            --github-token=$GITHUB_TOKEN
+            --github-repository=$GITHUB_REPOSITORY
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
         env:
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}

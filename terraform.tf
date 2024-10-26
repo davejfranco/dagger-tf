@@ -14,26 +14,6 @@ terraform {
 }
 
 provider "aws" {
-  alias                       = "locastack"
-  access_key                  = "test"
-  secret_key                  = "test"
-  region                      = "us-east-1"
-  s3_use_path_style           = false
-  skip_credentials_validation = true
-  skip_metadata_api_check     = true
-  skip_requesting_account_id  = true
-
-  endpoints {
-    ec2         = "http://localhost:4566"
-    elasticache = "http://localhost:4566"
-    iam         = "http://localhost:4566"
-    redshift    = "http://localhost:4566"
-    route53     = "http://localhost:4566"
-    sts         = "http://localhost:4566"
-  }
-}
-
-provider "aws" {
   region = "us-east-1"
 
   default_tags {

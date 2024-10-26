@@ -1,17 +1,17 @@
 ---
 name: Terraform PR Check
 on:
-  push:
+  pull_request:
     branches:
       - main
-permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read # This is required for actions/checkout
+    types: [opened, synchronize, reopened]
+
+permissions: write-all #required to create issue comments
 
 jobs:
   terraform:
     name: tf check
-    runs-on: dagger
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -28,8 +28,18 @@ jobs:
         uses: dagger/dagger-for-github@v6
         with:
           verb: call
-          args: plan --src=. --awsAccessKey=env:AWS_ACCESS_KEY_ID --awsSecretKey=env:AWS_SECRET_ACCESS_KEY
+          args: plan
+            --aws-access-key=AWS_ACCESS_KEY_ID
+            --aws-secret-key=AWS_SECRET_ACCESS_KEY
+            --aws-session-token=AWS_SESSION_TOKEN
+            --github-ref=$GITHUB_REF
+            --github-token=${{ secrets.GITHUB_TOKEN }}
+            --github-repository=$GITHUB_REPOSITORY
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
         env:
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+          GITHUB_REF: ${{ env.GITHUB_REF }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ env.GITHUB_REPOSITORY }}

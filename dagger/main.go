@@ -16,119 +16,130 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/google/go-github/v66/github"
 
 	"dagger/terraform/internal/dagger"
 )
 
-type Terraform struct{}
-
-// TODO: Fix error: STS: Get CallerIdentity exceeded maximum number of attempts 9
-//func (t *Terraform) Localstack(ctx context.Context, src *dagger.Directory) (string, error) {
-//	init, err := t.init(ctx, src)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	localstack := dag.Container().
-//		From("localstack/localstack").
-//		WithExposedPort(4566).
-//		AsService()
-//
-//	lsSrv, err := localstack.Start(ctx)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	defer localstack.Stop(ctx)
-//
-//	return init.
-//		WithServiceBinding("localstack", lsSrv).
-//		WithExec([]string{"terraform", "plan"}).
-//		Stdout(ctx)
-//}
-
-func (t *Terraform) Apply(ctx context.Context,
-	src *dagger.Directory,
-	awsAccessKey *dagger.Secret,
-	awsSecretKey *dagger.Secret,
-) (string, error) {
-	init, err := t.init(
-		ctx,
-		src,
-		awsAccessKey,
-		awsSecretKey,
-	)
-	if err != nil {
-		return "", err
+func New(
+	// +defaultPath="."
+	source *dagger.Directory,
+) *Terraform {
+	return &Terraform{
+		Src: source,
 	}
-
-	return init.
-		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-		WithExec([]string{"terraform", "apply", "-auto-approve"}).
-		Stdout(ctx)
 }
 
-func (t *Terraform) Plan(ctx context.Context,
-	src *dagger.Directory,
-	awsAccessKey *dagger.Secret,
-	awsSecretKey *dagger.Secret,
-) (string, error) {
-	init, err := t.init(
-		ctx,
-		src,
-		awsAccessKey,
-		awsSecretKey,
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return init.
-		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-		WithExec([]string{"terraform", "plan"}).
-		Stdout(ctx)
+type Terraform struct {
+	Src *dagger.Directory
 }
 
-func (t *Terraform) Format(ctx context.Context, src *dagger.Directory) (string, error) {
-	return t.BuildEnv(src).
+// Returns a build environment
+func (t *Terraform) buildEnv() *dagger.Container {
+	return dag.Container().
+		From("hashicorp/terraform:latest").
+		WithDirectory("/src", t.Src).
+		WithWorkdir("/src")
+}
+
+// Checks if code is correctly formatted
+func (t *Terraform) FmtCheck(ctx context.Context) (string, error) {
+	return t.buildEnv().
 		WithExec([]string{"terraform", "fmt", "-check"}).
 		Stdout(ctx)
 }
 
-//func (t *Terraform) validate(ctx context.Context, src *dagger.Directory) (string, error) {
-//	container, err := t.init(ctx, src)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return container.
-//		WithExec([]string{"terraform", "validate"}).
-//		Stdout(ctx)
-//}
-
-func (t *Terraform) init(ctx context.Context,
-	src *dagger.Directory,
+func (t *Terraform) init(
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
-) (*dagger.Container, error) {
-	container := t.BuildEnv(src).
+	// +optional
+	awsSessionToken *dagger.Secret,
+) *dagger.Container {
+	init := t.buildEnv().
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
-		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey).
-		WithExec([]string{"terraform", "init", "-reconfigure"})
+		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
 
-	_, err := container.Stdout(ctx)
-	if err != nil {
-		return nil, err
+	if awsSessionToken != nil {
+		init = init.WithSecretVariable("AWS_SESSION_TOKEN", awsSessionToken)
 	}
-	return container, nil
+
+	return init.
+		WithExec([]string{"terraform", "init", "-reconfigure"})
 }
 
-func (t *Terraform) BuildEnv(src *dagger.Directory) *dagger.Container {
-	return dag.Container().
-		From("hashicorp/terraform:latest").
-		WithDirectory("/src", src).
-		// Terminal(). This allows to debug step
-		WithWorkdir("/src")
+func prComment(ctx context.Context, token, owner, repo, pr, content string) error {
+	body := fmt.Sprintf("```\n%s\n```", content)
+
+	prInt, err := strconv.Atoi(pr)
+	if err != nil {
+		return err
+	}
+
+	client := github.NewClient(nil).WithAuthToken(token)
+	_, _, err = client.Issues.CreateComment(ctx, owner, repo, prInt, &github.IssueComment{
+		Body: &body,
+	})
+
+	return err
+}
+
+// Returns a Terraform plan
+func (t *Terraform) Plan(ctx context.Context,
+	awsAccessKey *dagger.Secret,
+	awsSecretKey *dagger.Secret,
+	// +optional
+	awsSessionToken *dagger.Secret,
+	// +optional
+	// +default=""
+	githubToken string,
+	// +optional
+	githubRepository string,
+	// +optional
+	githubRef string,
+) (string, error) {
+	container := t.init(
+		awsAccessKey,
+		awsSecretKey,
+		awsSessionToken,
+	)
+
+	container = container.
+		WithExec([]string{"terraform", "plan"})
+
+	output, err := container.Stdout(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if githubToken != "" {
+		fmt.Println(githubRef)
+		fmt.Println(githubRepository)
+		repo := strings.Split(githubRepository, "/")
+		pr := strings.Split(githubRef, "/")[2]
+		err = prComment(ctx, githubToken, repo[0], repo[1], pr, output)
+	}
+	return output, err
+}
+
+// Executes Terraform Apply
+func (t *Terraform) Apply(ctx context.Context,
+	awsAccessKey *dagger.Secret,
+	awsSecretKey *dagger.Secret,
+	// +optional
+	awsSessionToken *dagger.Secret,
+) (string, error) {
+	container := t.init(
+		awsAccessKey,
+		awsSecretKey,
+		awsSessionToken,
+	)
+
+	container = container.
+		WithExec([]string{"terraform", "apply", "-auto-approve"})
+
+	return container.Stdout(ctx)
 }

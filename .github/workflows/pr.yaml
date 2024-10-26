@@ -41,7 +41,7 @@ jobs:
             --aws-secret-key=AWS_SECRET_ACCESS_KEY
             --aws-session-token=AWS_SESSION_TOKEN
             --github-ref=$GITHUB_REF
-            --github-token=$GITHUB_TOKEN
+            --github-token=${{ secrets.GITHUB_TOKEN }}
             --github-repository=$GITHUB_REPOSITORY
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
         env:

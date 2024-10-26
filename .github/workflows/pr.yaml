@@ -6,10 +6,7 @@ on:
       - main
     types: [opened, synchronize, reopened]
 
-permissions:
-  issues: write # This allow to create comments on the PR
-  id-token: write # This is required for requesting the JWT
-  contents: write # This is required for actions/checkout
+permissions: write-all #required to create issue comments
 
 jobs:
   terraform:

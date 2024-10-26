@@ -7,9 +7,9 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  issues: write
+  issues: write # This allow to create comments on the PR
   id-token: write # This is required for requesting the JWT
-  contents: read # This is required for actions/checkout
+  contents: write # This is required for actions/checkout
 
 jobs:
   terraform:
@@ -26,12 +26,6 @@ jobs:
           role-to-assume: arn:aws:iam::444106639146:role/gha-iam-role
           role-session-name: ghaSession
           output-credentials: true
-
-      - name: GITHUB_REF
-        run: |
-          echo $GITHUB_REF
-        env:
-          GITHUB_REF: ${{ env.GITHUB_REF }}
 
       - name: tf plan
         uses: dagger/dagger-for-github@v6

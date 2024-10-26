@@ -1,3 +1,4 @@
+# I was planing to use this for terraform + kubectl deployments
 # Build stage for Terraform, kubectl, and AWS CLI
 FROM --platform=${BUILDPLATFORM:-linux/amd64} alpine AS builder
 
